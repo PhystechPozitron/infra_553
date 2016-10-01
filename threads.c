@@ -10,6 +10,7 @@
 #include <unistd.h> // sleep
 
 int a = 0;
+pthread_mutex_t lock;
 
 /* 
    Переменная а является глобальной статической для всей
@@ -28,8 +29,7 @@ void* my_thread(void* dummy) {
     что мы не используем входной параметр и возвращаемое
     значение
 */
-    pthread_t my_thread_id; 
-    sleep(1);
+    pthread_t my_thread_id;
 
 /*
     Переменная my_thread_id является динамической локальной переменной
@@ -38,7 +38,20 @@ void* my_thread(void* dummy) {
 */
 
     my_thread_id = pthread_self();
-    a += 1;
+    for (int i = 0; i < 10000; i++) {
+        if (pthread_mutex_lock(&lock)) {
+		printf("can't lock\n");
+                exit(1);
+	}
+        //printf("Thread %u got lock\n", (unsigned int)my_thread_id);
+        a = a + 1;
+	if (pthread_mutex_unlock(&lock)) {
+		printf("can't unlock\n");
+                exit(1);
+	}
+        //printf("Thread %u unlocked\n", (unsigned int)my_thread_id);
+    }
+
     printf("Thread %u, result = %d\n" , (unsigned int)my_thread_id , a);
     
     return NULL;
@@ -48,8 +61,10 @@ void* my_thread(void* dummy) {
     Функция main() - она же ассоциированная функция главного thread`a
 */
 
-int main()
-{
+
+int main() {
+    
+
     pthread_t thread_id , my_thread_id;
     int result;
     /* 
@@ -60,6 +75,8 @@ int main()
         В случае ошибки перекращаем работу.
     */
     
+    pthread_mutex_init(&lock, NULL);
+
     result = pthread_create(&thread_id , 
                             (pthread_attr_t *)NULL , 
                             my_thread ,
@@ -74,8 +91,19 @@ int main()
 
     /* Запрашиваем id главного thread`a */
     my_thread_id = pthread_self();
-    a += 1;
-    printf("Thread %u, result = %d\n" , (unsigned int)my_thread_id , a);
+    for (int i = 0; i < 10000; i++) {
+	if (pthread_mutex_lock(&lock)) {
+		printf("can't lock\n");
+		exit(1);
+	}
+        //printf("Thread %u got locked\n", (unsigned int)my_thread_id);
+        a += 1;
+	if (pthread_mutex_unlock(&lock)) {
+		printf("can't unlock\n");
+                exit(1);
+	}
+        //printf("Thread %u unlocked\n", (unsigned int)my_thread_id);
+    }
 
     /*
         Ожидаем завершение порожденного thread`a, не интересуясь, какое значение он
@@ -85,42 +113,11 @@ int main()
     */
 
     pthread_join(thread_id , (void **) NULL);
+
+    printf("Thread %u, result = %d\n" , (unsigned int)my_thread_id , a);
+
+    pthread_mutex_destroy(&lock);
+
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
